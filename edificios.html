@@ -1,0 +1,1425 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IOTEK · Monitoreo y control de instalaciones</title>
+<meta name="description" content="Iotek Soluciones proyecta, instala y sostiene sistemas de monitoreo y control: perímetro, acceso, interior, servicios e infraestructura, en una sola pantalla.">
+<meta name="theme-color" content="#051826">
+<link rel="icon" href="logos/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="logos/iotek-app-icon-oscuro.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/base.css">
+
+<style>
+/* ============================================================
+   "ABISMO"  ·  ver DESIGN.md
+   Lo específico del edificio: tokens, tipografía, encabezado, pie
+   y formulario viven en base.css (compartido con moviles.html).
+   Acá queda la atmósfera 3D y el descenso por las cinco capas.
+   ============================================================ */
+
+/* ============================================================
+   ATMÓSFERA  ·  canvas fijo detrás del héroe y del descenso.
+   Sostiene el mesh de la instalación.
+   ============================================================ */
+#atmosfera{
+  position:fixed; inset:0;
+  z-index:0;
+  pointer-events:none;
+  will-change:opacity;
+}
+#atmosfera canvas{ width:100%; height:100%; }
+
+/* halo CSS: el brillo no sale de post-procesado, sale de acá */
+#atmosfera::after{
+  content:"";
+  /* el halo acompaña al modelo: la misma medición que encuadra la cámara
+     escribe --halo, y vuelve al centro cuando no hay escenario aparte */
+  position:absolute; left:var(--halo,50%); top:46%;
+  width:min(112vw,1180px); aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(var(--fosforo-rgb),.13) 0%,rgba(var(--fosforo-rgb),.045) 34%,transparent 66%);
+  pointer-events:none;
+}
+
+/* Rótulo del foco. No es un tooltip: nombra la pieza del modelo que
+   la capa activa está explicando. La posición la escribe el bucle de
+   dibujo con transform, nunca toca el layout. */
+.foco{
+  position:fixed; left:0; top:0;
+  z-index:2;
+  margin:0; padding:8px 11px 7px;
+  pointer-events:none;
+  /* placa oscura, no sólo sombra de texto: la capa activa se dibuja en
+     blanco y un rótulo sin fondo se pierde entre sus líneas */
+  /* placa opaca, sin backdrop-filter: el rótulo vive encima del canvas y
+     un desenfoque de fondo obliga a recomponer la pantalla entera en cada
+     cuadro. Opaco alcanza y no se paga nada. */
+  background:rgba(3,15,25,.88);
+  border:1px solid rgba(255,255,255,.15);
+  border-bottom-color:rgba(255,255,255,.66);
+  border-radius:var(--r-int);
+  color:var(--platino);
+  font-family:var(--mono);
+  font-size:11px; line-height:1;
+  letter-spacing:.17em; text-transform:uppercase;
+  white-space:nowrap;
+  text-shadow:0 0 14px rgba(var(--fosforo-rgb),.5);
+}
+/* el atributo tiene que ganarle a cualquier display de más abajo */
+.foco[hidden]{ display:none; }
+.foco span{ display:block; }
+
+/* ============================================================
+   HÉROE
+   ============================================================ */
+.heroe{
+  position:relative; z-index:1;
+  min-height:100svh;
+  display:flex; align-items:center;
+  padding-top:calc(var(--h-header) + 40px);
+  padding-bottom:64px;
+}
+.heroe__caja{ width:100%; }
+/* medida en em del propio título: en ch heredaría los 17px del contenedor
+   y partiría el display cada dos palabras */
+.heroe h1{ max-width:11em; margin-bottom:28px; }
+.heroe__entrada{
+  font-size:var(--t-entrada);
+  line-height:1.45; letter-spacing:-.01em;
+  color:var(--bruma);
+  max-width:56ch;
+  margin-bottom:40px;
+}
+.heroe__acciones{ display:flex; align-items:center; gap:28px; flex-wrap:wrap; }
+
+/* ============================================================
+   EL DESCENSO  ·  el único momento animado de la página
+   ============================================================ */
+.descenso{ position:relative; z-index:1; }
+
+.descenso__portada{
+  padding-block:var(--hueco) 0;
+}
+.descenso__portada h2{ max-width:16ch; }
+
+.descenso__pista{ position:relative; height:calc(5 * 100svh); }
+
+/* El campo de puntos no puede pasar por encima del texto. Este piso es
+   lo que hace legible el descenso, sobre todo en pantallas angostas. */
+.descenso__escenario::before{
+  content:"";
+  /* sin sangrado horizontal negativo: desbordaba el ancho del documento
+     y aparecia scroll lateral. El degradado ya difumina los bordes. */
+  position:absolute; inset:-8% 0;
+  z-index:0; pointer-events:none;
+  background:radial-gradient(ellipse 54% 58% at 27% 50%,
+    var(--abismo) 0%, rgba(5,24,38,.94) 40%, rgba(5,24,38,.5) 66%, transparent 86%);
+}
+.descenso__escenario > *{ position:relative; z-index:1; }
+
+.descenso__escenario{
+  position:sticky;
+  top:var(--h-header);
+  height:calc(100svh - var(--h-header));
+  display:grid;
+  /* Tres columnas: riel, texto y ESCENARIO. La tercera queda vacia a
+     proposito — es el hueco donde la camara deja la pieza que se explica.
+     Sin esta columna el texto se estira hasta el centro y tapa el foco. */
+  /* la primera va en auto y no en px: "INFRAESTRUCTURA" mide 185 y con
+     una pista de 168 se desbordaba en silencio sobre el texto */
+  grid-template-columns:auto minmax(0,540px) minmax(0,1fr);
+  align-items:center;
+  gap:clamp(24px,4vw,72px);
+  width:100%; max-width:var(--maxw);
+  margin-inline:auto;
+  padding-inline:var(--marco);
+}
+
+/* riel de profundidad: dice en qué capa estás, no numera secciones */
+.riel{ display:flex; flex-direction:column; gap:2px; }
+.riel__item{
+  display:flex; align-items:center; gap:12px;
+  padding-block:11px;
+  color:var(--plata);
+  opacity:.6;
+  transition:opacity 380ms ease, color 380ms ease;
+}
+/* escala en vez de ancho: animar width provoca reflow en cada cuadro */
+.riel__marca{
+  width:44px; height:1px; flex:none;
+  background:currentColor;
+  transform:scaleX(.59); transform-origin:left center;
+  transition:transform 380ms cubic-bezier(.16,1,.3,1);
+}
+.riel__item[data-viva="si"]{ opacity:1; color:var(--fosforo); }
+.riel__item[data-viva="si"] .riel__marca{ transform:scaleX(1); }
+
+/* pila de capas: todas montadas, se cruzan por opacidad */
+.capas{ position:relative; min-height:min(420px,58svh); }
+.capa{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; justify-content:center;
+  max-width:540px;
+  will-change:opacity,transform;
+}
+.capa h3{ margin-bottom:18px; }
+.capa p{ color:var(--bruma); max-width:62ch; }
+
+.fichas{ display:flex; flex-wrap:wrap; gap:8px; margin-top:28px; }
+.ficha{
+  padding:7px 12px;
+  border:1px solid var(--borde);
+  border-radius:var(--r-int);
+  background:var(--placa);
+}
+
+/* ============================================================
+   LA PANTALLA  ·  hueco honesto, no un tablero de mentira
+   ============================================================ */
+.pantalla__cabeza{ max-width:20ch; margin-bottom:24px; }
+.pantalla__texto{ max-width:64ch; margin-bottom:48px; }
+
+.hueco{
+  position:relative;
+  border:1px dashed var(--borde-vivo);
+  border-radius:var(--r-cont);
+  background:var(--placa);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px;
+  padding:clamp(40px,7vw,88px) 32px;
+  text-align:center;
+}
+.hueco--ancho{ aspect-ratio:16/9; max-height:min(560px,52svh); }
+.hueco__titulo{ color:var(--bruma); font-size:18px; font-weight:500; }
+.hueco__nota{ max-width:46ch; font-size:15px; }
+
+/* ============================================================
+   INDUSTRIAS  ·  lista tipográfica, no una grilla de tarjetas
+   ============================================================ */
+.industrias__cabeza{ max-width:15ch; margin-bottom:56px; }
+
+.lista{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:clamp(32px,6vw,96px);
+  border-top:1px solid var(--borde);
+}
+.lista__fila{
+  position:relative;
+  display:flex; align-items:baseline; gap:16px;
+  padding-block:clamp(20px,2.4vw,30px);
+  border-bottom:1px solid var(--borde);
+  color:var(--bruma);
+  font-size:clamp(20px,2.1vw,27px);
+  font-weight:500; letter-spacing:-.02em;
+  transition:color 260ms ease;
+}
+.lista__fila::after{
+  content:""; position:absolute; left:0; bottom:-1px;
+  width:100%; height:1px; background:var(--fosforo);
+  transform:scaleX(0); transform-origin:left center;
+  transition:transform 460ms cubic-bezier(.16,1,.3,1);
+}
+.lista__fila:hover{ color:var(--platino); }
+.lista__fila:hover::after{ transform:scaleX(1); }
+.lista__detalle{
+  margin-left:auto;
+  color:var(--plata);
+  font:400 var(--t-dato)/1 var(--mono);
+  letter-spacing:.12em; text-transform:uppercase;
+}
+
+/* ============================================================
+   OFICIO  ·  las cifras viven dentro de la prosa
+   ============================================================ */
+.oficio{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:clamp(32px,6vw,96px); align-items:start; }
+.oficio__enunciado{
+  font-family:var(--display);
+  font-size:clamp(22px,2.6vw,32px);
+  line-height:1.32; letter-spacing:-.025em;
+  color:var(--platino); font-weight:500;
+  text-wrap:pretty;
+}
+.oficio__cuerpo{ max-width:62ch; }
+.oficio__cuerpo p + p{ margin-top:18px; }
+
+.servicios{ margin-top:34px; display:flex; flex-wrap:wrap; gap:8px; }
+
+/* ============================================================
+   CASO  ·  también honesto
+   ============================================================ */
+.caso{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:clamp(32px,5vw,72px); align-items:center; }
+.caso__cabeza{ max-width:16ch; margin-bottom:22px; }
+.caso__texto{ max-width:58ch; margin-bottom:40px; }
+.numeros{ display:flex; flex-direction:column; }
+.numeros__linea{
+  display:flex; align-items:baseline; justify-content:space-between; gap:24px;
+  padding-block:20px;
+  border-bottom:1px solid var(--borde);
+}
+.numeros__linea:first-child{ border-top:1px solid var(--borde); }
+.numeros__valor{
+  color:var(--fosforo);
+  font:400 var(--t-dato)/1 var(--mono);
+  letter-spacing:.12em; text-transform:uppercase;
+  opacity:.55;
+}
+
+/* ============================================================
+   ADAPTACIÓN  ·  todos los media queries al final, a propósito:
+   una regla con el mismo selector puesta después gana por orden
+   y mata el override en silencio. Las reglas de base.css
+   (encabezado, pie, formulario) se ajustan en ese archivo.
+   ============================================================ */
+@media (max-width:1040px){
+  .oficio,.caso{ grid-template-columns:minmax(0,1fr); }
+  .caso__figura{ order:-1; }
+  /* ya no entra una columna de escenario: el texto se achica para que al
+     modelo le siga quedando un hueco propio a la derecha */
+  .descenso__escenario{ grid-template-columns:auto minmax(0,1fr); }
+  .capa{ max-width:460px; }
+}
+
+@media (max-width:820px){
+  .heroe__caja{ max-width:none; }
+  .lista{ grid-template-columns:minmax(0,1fr); }
+  .descenso__escenario{
+    grid-template-columns:minmax(0,1fr);
+    align-content:center;
+    gap:32px;
+  }
+  .riel{ flex-direction:row; flex-wrap:wrap; gap:6px 16px; }
+  .riel__item{ padding-block:8px; }
+  .riel__marca{ width:22px; }
+  .riel__item[data-viva="si"] .riel__marca{ transform:scaleX(1); }
+  .capas{ min-height:min(360px,52svh); }
+  .capa{ max-width:none; }
+  .foco{ display:none; }
+  /* Sin columna de escenario el texto queda ENCIMA del modelo, y la capa
+     activa ahora se dibuja en blanco. El piso de lectura tiene que cubrir
+     el ancho entero, no el tercio izquierdo que alcanza en escritorio. */
+  .descenso__escenario::before{
+    /* nada de inset horizontal negativo: ya generó scroll lateral una vez */
+    inset:-6% 0;
+    background:radial-gradient(ellipse 92% 60% at 50% 52%,
+      var(--abismo) 0%, rgba(5,24,38,.96) 44%, rgba(5,24,38,.62) 70%, transparent 92%);
+  }
+  .hueco--ancho{ aspect-ratio:4/3; }
+}
+
+@media (prefers-reduced-motion:reduce){
+  /* el descenso se vuelve una lista vertical honesta */
+  .descenso__pista{ height:auto; }
+  .descenso__escenario{
+    position:static; height:auto;
+    display:block;
+    padding-block:var(--hueco);
+  }
+  .riel{ display:none; }
+  .capas{ min-height:0; display:flex; flex-direction:column; gap:64px; }
+  .capa{ position:static; opacity:1 !important; transform:none !important; max-width:56ch; }
+  #atmosfera{ opacity:.5 !important; }
+  .foco{ display:none; }
+}
+</style>
+</head>
+
+<body>
+
+<script>
+/* Red de seguridad. Las entradas parten de opacity:.001 para no parpadear.
+   Si el módulo de abajo no llega a cargar (CDN caído, red mala, navegador
+   sin soporte de módulos), esto devuelve la página a su estado legible.
+   El módulo cancela el temporizador apenas arranca. */
+window.__redDeSeguridad = setTimeout(function(){
+  document.documentElement.classList.add("js-inerte");
+}, 2500);
+</script>
+
+<a class="solo-lectores" href="#contenido">Saltar al contenido</a>
+
+<!-- La atmósfera: la instalación como único objeto iluminado. El scroll
+     entra en espiral, del cerco al núcleo técnico. Sin post-procesado. -->
+<div id="atmosfera" aria-hidden="true"></div>
+<!-- Rotulo del foco: nombra la pieza del modelo que la capa activa esta
+     explicando. Va anclado al punto 3D, lo posiciona el bucle de dibujo. -->
+<p class="foco dato" id="foco" aria-hidden="true" hidden><span></span></p>
+
+<header class="encabezado" id="encabezado">
+  <div class="encabezado__fila">
+    <a class="marca" href="#top" aria-label="IOTEK, inicio">
+      <img src="logos/iotek-horizontal-blanco.svg" alt="IOTEK" width="360" height="92" decoding="async">
+    </a>
+
+    <nav class="navegacion" id="navegacion" aria-label="Principal" data-abierto="no">
+      <a href="#capas">Capas</a>
+      <a href="#plataforma">Plataforma</a>
+      <a href="#industrias">Industrias</a>
+      <a href="#contacto">Contacto</a>
+      <a href="index.html">&larr; Inicio</a>
+    </nav>
+
+    <button class="menu-boton" id="menu-boton" type="button" aria-expanded="false" aria-controls="navegacion" aria-label="Abrir navegación">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>
+      </svg>
+    </button>
+
+    <a class="boton" href="#contacto">
+      Pedir una propuesta
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14"/><path d="M15 16l4-4"/><path d="M15 8l4 4"/>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<main id="contenido">
+
+  <!-- ══════════ HÉROE ══════════ -->
+  <section class="heroe envoltura" id="top">
+    <div class="heroe__caja">
+      <h1 class="entra" data-entra>Todo lo que pasa, en una sola pantalla.</h1>
+      <p class="heroe__entrada entra" data-entra>
+        Diseñamos, instalamos y sostenemos los sistemas de monitoreo y control
+        de instalaciones que no pueden parar.
+      </p>
+      <div class="heroe__acciones entra" data-entra>
+        <a class="boton boton--grande" href="#contacto">
+          Pedir una propuesta
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"/><path d="M15 16l4-4"/><path d="M15 8l4 4"/>
+          </svg>
+        </a>
+        <a class="enlace-sec" href="#capas">
+          Ver cómo funciona
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ EL DESCENSO ══════════
+       El scroll no recorre secciones: hunde la cámara a través de
+       las cinco capas de una instalación. -->
+  <section class="descenso" id="capas" aria-label="Las cinco capas de una instalación">
+
+    <div class="descenso__portada envoltura">
+      <h2 class="entra" data-entra>Cinco capas, una sola operación.</h2>
+    </div>
+
+    <div class="descenso__pista" id="pista">
+      <div class="descenso__escenario">
+
+        <nav class="riel" id="riel" aria-label="Capas">
+          <a class="riel__item dato" href="#capa-perimetro" data-riel="0" data-viva="si">
+            <span class="riel__marca" aria-hidden="true"></span>Perímetro
+          </a>
+          <a class="riel__item dato" href="#capa-acceso" data-riel="1">
+            <span class="riel__marca" aria-hidden="true"></span>Acceso
+          </a>
+          <a class="riel__item dato" href="#capa-interior" data-riel="2">
+            <span class="riel__marca" aria-hidden="true"></span>Interior
+          </a>
+          <a class="riel__item dato" href="#capa-servicios" data-riel="3">
+            <span class="riel__marca" aria-hidden="true"></span>Servicios
+          </a>
+          <a class="riel__item dato" href="#capa-infra" data-riel="4">
+            <span class="riel__marca" aria-hidden="true"></span>Infraestructura
+          </a>
+        </nav>
+
+        <div class="capas" id="capas-pila">
+
+          <article class="capa" id="capa-perimetro" data-capa="0">
+            <h3>Antes de que entre.</h3>
+            <p>Radar y videoanalítica sobre el límite del predio. El aviso llega durante
+               el evento, no cuando alguien revisa la grabación, y se verifica con video
+               antes de disparar la alarma.</p>
+            <div class="fichas">
+              <span class="ficha dato">Radar</span>
+              <span class="ficha dato">Videoanalítica</span>
+              <span class="ficha dato">Verificación</span>
+            </div>
+          </article>
+
+          <article class="capa" id="capa-acceso" data-capa="1">
+            <h3>Quién entra, y cuándo.</h3>
+            <p>Biometría en el ingreso peatonal y lectura de patente en la barrera.
+               Cada paso queda registrado, y las credenciales vencidas dejan de abrir
+               sin que nadie tenga que acordarse.</p>
+            <div class="fichas">
+              <span class="ficha dato">Biometría</span>
+              <span class="ficha dato">Antipassback</span>
+              <span class="ficha dato">LPR</span>
+            </div>
+          </article>
+
+          <article class="capa" id="capa-interior" data-capa="2">
+            <h3>Qué pasa adentro.</h3>
+            <p>CCTV, conteo de personas y sensores de ambiente. La visita se preautoriza
+               desde la plataforma y llega con un QR, así que la recepción deja de
+               anotar en papel.</p>
+            <div class="fichas">
+              <span class="ficha dato">CCTV</span>
+              <span class="ficha dato">Conteo</span>
+              <span class="ficha dato">Credenciales</span>
+            </div>
+          </article>
+
+          <article class="capa" id="capa-servicios" data-capa="3">
+            <h3>Lo que consume y lo que falla.</h3>
+            <p>Clima, iluminación y energía medidos por zona, con reglas por horario y
+               ocupación. Tanques, bombas y ascensores reportan estado antes de que
+               alguien llame para avisar.</p>
+            <div class="fichas">
+              <span class="ficha dato">HVAC</span>
+              <span class="ficha dato">BMS</span>
+              <span class="ficha dato">Energía</span>
+            </div>
+          </article>
+
+          <article class="capa" id="capa-infra" data-capa="4">
+            <h3>Todo converge acá.</h3>
+            <p>Servidores, grabación y red. Sobre eso corre HikCentral y la plataforma
+               propia de IOTEK: una sola pantalla para toda la operación, con auditoría
+               de cada acción.</p>
+            <div class="fichas">
+              <span class="ficha dato">Servidores</span>
+              <span class="ficha dato">NVR</span>
+              <span class="ficha dato">HikCentral</span>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ LA PANTALLA ══════════ -->
+  <section class="seccion envoltura" id="plataforma">
+    <h2 class="pantalla__cabeza entra" data-entra>La pantalla donde converge.</h2>
+    <p class="pantalla__texto entra" data-entra>
+      Las cinco capas terminan en un solo tablero. Quien opera no cambia de sistema para
+      mirar una cámara, abrir una barrera o revisar por qué subió el consumo de un piso.
+    </p>
+
+    <!-- TODO(usuario): reemplazar por la captura real de HikCentral o de la
+         plataforma IOTEK, 1600x900 o mayor. Hasta que exista, este hueco queda
+         rotulado: un tablero falso hecho de div le cuesta credibilidad a la página. -->
+    <div class="hueco hueco--ancho entra" data-entra>
+      <span class="dato">Falta material</span>
+      <span class="hueco__titulo">Captura de HikCentral y de la plataforma IOTEK</span>
+      <p class="hueco__nota">
+        Formato 16:9, 1600 px de ancho como mínimo. Sirve una captura real de una
+        operación en curso, con los datos sensibles tapados.
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════ INDUSTRIAS ══════════ -->
+  <section class="seccion envoltura" id="industrias">
+    <h2 class="industrias__cabeza entra" data-entra>Seis industrias, una misma ingeniería.</h2>
+
+    <div class="lista entra" data-entra>
+      <div class="lista__fila">Edificios inteligentes <span class="lista__detalle">Corporativo</span></div>
+      <div class="lista__fila">Barrios cerrados <span class="lista__detalle">Residencial</span></div>
+      <div class="lista__fila">Industria 4.0 <span class="lista__detalle">Manufactura</span></div>
+      <div class="lista__fila">Salud <span class="lista__detalle">Hospitales</span></div>
+      <div class="lista__fila">Ciudades <span class="lista__detalle">Municipios</span></div>
+      <div class="lista__fila">Logística <span class="lista__detalle">Distribución</span></div>
+    </div>
+  </section>
+
+  <!-- ══════════ OFICIO ══════════ -->
+  <section class="seccion envoltura">
+    <div class="oficio">
+      <p class="oficio__enunciado entra" data-entra>
+        Iotek Soluciones lleva más de <span class="cifra">20 años</span> proyectando,
+        instalando y sosteniendo instalaciones en Buenos Aires, con soporte
+        <span class="cifra">24/7</span>.
+      </p>
+      <div class="oficio__cuerpo entra" data-entra>
+        <p>
+          Trabajamos el ciclo entero. Relevamos el sitio, proyectamos la solución,
+          la instalamos y después nos quedamos: la mayoría de nuestros contratos son
+          de mantenimiento, no de obra.
+        </p>
+        <p>
+          Cuando ya hay equipos puestos, casi siempre se aprovechan. Integrar suele
+          costar menos que reemplazar, y es lo primero que miramos.
+        </p>
+        <div class="servicios">
+          <span class="ficha dato">Relevamiento</span>
+          <span class="ficha dato">Seguridad y control</span>
+          <span class="ficha dato">Automatización</span>
+          <span class="ficha dato">Desarrollo</span>
+          <span class="ficha dato">Infraestructura IT</span>
+          <span class="ficha dato">Asistencia</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ CASO ══════════ -->
+  <section class="seccion envoltura">
+    <div class="caso">
+      <div>
+        <h2 class="caso__cabeza entra" data-entra>Un proyecto contado en números.</h2>
+        <p class="caso__texto entra" data-entra>
+          Este bloque espera el primer caso documentado: qué había antes, qué se integró
+          y qué cambió medido. Es lo que más pesa cuando un decisor compara presupuestos.
+        </p>
+        <!-- TODO(usuario): cargar cliente, sitio, alcance y resultado reales.
+             Los guiones se quedan hasta que existan los números. -->
+        <div class="numeros entra" data-entra>
+          <div class="numeros__linea">
+            <span class="dato">Cámaras integradas</span><span class="numeros__valor">Pendiente</span>
+          </div>
+          <div class="numeros__linea">
+            <span class="dato">Accesos gestionados</span><span class="numeros__valor">Pendiente</span>
+          </div>
+          <div class="numeros__linea">
+            <span class="dato">Meses de obra</span><span class="numeros__valor">Pendiente</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="caso__figura entra" data-entra>
+        <!-- TODO(usuario): foto de obra terminada del caso destacado, vertical o 4:5. -->
+        <div class="hueco">
+          <span class="dato">Falta material</span>
+          <span class="hueco__titulo">Foto de la obra terminada</span>
+          <p class="hueco__nota">Vertical o 4:5, con el sitio reconocible y permiso del cliente.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ CONTACTO ══════════ -->
+  <section class="seccion contacto" id="contacto">
+    <div class="envoltura contacto__rejilla">
+
+      <div>
+        <h2 class="contacto__cabeza entra" data-entra>Contanos qué necesitás resolver.</h2>
+        <p class="contacto__texto entra" data-entra>
+          Respondemos con una propuesta técnica, no con un folleto. Si ya tenés equipos
+          instalados, decinos cuáles.
+        </p>
+
+        <div class="datos entra" data-entra>
+          <div class="datos__fila">
+            <svg class="datos__icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7l9 6l9-6"/>
+            </svg>
+            <div>
+              <span class="dato">Email</span>
+              <a class="datos__valor" href="mailto:contacto@iotek.com.ar">contacto@iotek.com.ar</a>
+            </div>
+          </div>
+
+          <div class="datos__fila">
+            <svg class="datos__icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5-2.5l5 2v4a2 2 0 0 1-2 2a16 16 0 0 1-15-15a2 2 0 0 1 2-2"/>
+            </svg>
+            <div>
+              <span class="dato">Teléfono</span>
+              <a class="datos__valor" href="tel:+541160218568">+54 11 6021 8568</a>
+            </div>
+          </div>
+
+          <div class="datos__fila">
+            <svg class="datos__icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0-6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/>
+            </svg>
+            <div>
+              <span class="dato">Oficinas centrales</span>
+              <span class="datos__valor">Buenos Aires, Argentina</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <form class="formulario entra" data-entra id="formulario" novalidate>
+        <div class="campo">
+          <label for="f-nombre">Nombre <span class="req" aria-hidden="true">*</span></label>
+          <input id="f-nombre" name="nombre" type="text" autocomplete="name" required aria-describedby="f-nombre-error">
+          <span class="error" id="f-nombre-error" data-error-de="f-nombre"></span>
+        </div>
+
+        <div class="campo">
+          <label for="f-empresa">Empresa</label>
+          <input id="f-empresa" name="empresa" type="text" autocomplete="organization" aria-describedby="f-empresa-error">
+          <span class="error" id="f-empresa-error" data-error-de="f-empresa"></span>
+        </div>
+
+        <div class="campo">
+          <label for="f-email">Email <span class="req" aria-hidden="true">*</span></label>
+          <input id="f-email" name="email" type="email" autocomplete="email" required aria-describedby="f-email-error">
+          <span class="error" id="f-email-error" data-error-de="f-email"></span>
+        </div>
+
+        <div class="campo">
+          <label for="f-telefono">Teléfono</label>
+          <input id="f-telefono" name="telefono" type="tel" autocomplete="tel" placeholder="+54 11" aria-describedby="f-telefono-error">
+          <span class="error" id="f-telefono-error" data-error-de="f-telefono"></span>
+        </div>
+
+        <div class="campo campo--ancho">
+          <label for="f-industria">Industria</label>
+          <select id="f-industria" name="industria">
+            <option value="">Elegí una</option>
+            <option>Edificios corporativos</option>
+            <option>Barrios cerrados</option>
+            <option>Industria y manufactura</option>
+            <option>Salud y hospitales</option>
+            <option>Municipios y smart city</option>
+            <option>Logística y distribución</option>
+            <option>Otra</option>
+          </select>
+        </div>
+
+        <div class="campo campo--ancho">
+          <label for="f-mensaje">Qué necesitás resolver <span class="req" aria-hidden="true">*</span></label>
+          <textarea id="f-mensaje" name="mensaje" required placeholder="Sitio, superficie, qué hay instalado hoy y qué te falta." aria-describedby="f-mensaje-ayuda f-mensaje-error"></textarea>
+          <span class="ayuda" id="f-mensaje-ayuda">Cuanto más concreto, más precisa sale la propuesta.</span>
+          <span class="error" id="f-mensaje-error" data-error-de="f-mensaje"></span>
+        </div>
+
+        <div class="aviso" id="aviso" role="status" hidden></div>
+
+        <div class="formulario__pie">
+          <button class="boton boton--grande" type="submit" id="enviar">
+            <span id="enviar-texto">Enviar la consulta</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14"/><path d="M15 16l4-4"/><path d="M15 8l4 4"/>
+            </svg>
+          </button>
+          <span class="ayuda">Respondemos dentro de las 48 horas hábiles.</span>
+        </div>
+      </form>
+
+    </div>
+  </section>
+</main>
+
+<footer class="pie">
+  <div class="envoltura pie__fila">
+    <img class="pie__marca" src="logos/iotek-horizontal-blanco.svg" alt="Iotek Soluciones" width="360" height="92" decoding="async" loading="lazy">
+    <span class="dato">Monitoreo · Control · Automatización</span>
+    <span class="dato">© 2026 Iotek Soluciones SA</span>
+  </div>
+</footer>
+
+<script type="module">
+import { scroll } from "https://cdn.jsdelivr.net/npm/motion@12.23.12/+esm";
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { C, suave, tope, Lotes } from "./js/mesh.js";
+import { quieto, encabezadoFijo, menuMovil, revelarEntradas, montarFormulario } from "./js/comun.js";
+
+clearTimeout(window.__redDeSeguridad);
+
+const lotes = new Lotes(THREE);
+
+/* ── Encabezado: filete sólo cuando hay contenido debajo ───────────── */
+encabezadoFijo(document.getElementById("encabezado"));
+
+/* ── Menú mobile ──────────────────────────────────────────────────── */
+menuMovil(document.getElementById("menu-boton"), document.getElementById("navegacion"));
+
+/* ── Entradas. Desde un estado ya visible: si el JS no corre, la
+      página se lee igual (.js-inerte lo garantiza más abajo). ──────── */
+revelarEntradas();
+
+/* ══════════════════════════════════════════════════════════════════
+   LA ATMÓSFERA
+   Un solo objeto iluminado en una sala oscura: la instalación.
+   El descenso no baja en línea recta, entra en espiral: arranca fuera
+   del cerco y termina adentro del núcleo técnico. Por eso la última
+   capa se llama infraestructura y es la más honda.
+   Sin OrbitControls (la rueda es del scroll) y sin post-procesado:
+   el brillo es AdditiveBlending + halo CSS.
+   ══════════════════════════════════════════════════════════════════ */
+const NIVELES = 5;
+
+const host = document.getElementById("atmosfera");
+let renderer, escena, camara, polvo;
+let corriendo = false, visible = true;
+let progreso = 0, progresoSuave = 0;
+
+/* Cada pieza declara a qué capa pertenece. -1 = casco: siempre presente,
+   nunca protagonista. */
+const piezas = [];
+const marcas = [];
+
+const C_FOSFORO = new THREE.Color(C.FOSFORO);
+const C_BLANCO  = new THREE.Color(C.BLANCO);
+const punto = new THREE.Vector3();     // scratch: se reusa cada cuadro
+let corrimiento = 0;                    // desplazamiento de lente, en anchos
+let escenarioAparte = false;            // ¿hay columna propia para el modelo?
+
+/* Medidas de la retícula, EN PÍXELES de pantalla. El grupo se reescala
+   cada cuadro según su distancia, así mide lo mismo con la cámara a 57
+   unidades que a 17. */
+const R_ANCHO = 104, R_ALTO = 68, R_BRAZO = 26, R_TALLO = 38;
+
+/* Encuadres del descenso, en coordenadas esféricas alrededor del eje del
+   edificio. El radio cae y el giro acumula: eso es lo que se lee como
+   "me estoy metiendo adentro". */
+/* Cada parada mira a SU zona, no al eje del edificio: orbitar siempre el
+   centro dejaba la barrera fuera de cuadro justo cuando era la protagonista. */
+const PARADAS = [
+  { r: 65, phi: 1.16, th: 0.00, t: [   0,  7.0,   0] },  // perímetro: el sitio entero
+  { r: 24, phi: 1.25, th: 0.60, t: [-5.4,  2.8, 6.6] },  // acceso: barrera, pórtico y garita
+  { r: 34, phi: 1.07, th: 1.30, t: [   0,  9.0,   0] },  // interior: la torre
+  { r: 17, phi: 0.92, th: 2.00, t: [-0.3, 15.6,-0.4] },  // servicios: la azotea
+  { r: 17, phi: 1.24, th: 2.78, t: [   0,  8.4,   0] },  // infraestructura: el núcleo encendido
+];
+
+/* El foco de cada parada: la pieza concreta de la que habla el texto.
+   No coincide con el objetivo de la cámara — la cámara encuadra la zona,
+   el foco señala el aparato. De acá salen tres cosas: dónde va la
+   retícula, qué dice el rótulo y cuánto hay que correr la lente para que
+   nada de eso caiga debajo del texto. */
+const FOCOS = [
+  { p: [-11,   2.4, -11 ], rotulo: "Cerco perimetral" },
+  { p: [-5.75, 1.55, 7.9], rotulo: "Barrera · LPR"    },
+  { p: [ 3.6,  8.2,  3.6], rotulo: "Fachada · CCTV"   },
+  { p: [ 2.1, 16.4, -1.7], rotulo: "Azotea · clima"   },
+  { p: [ 0,    2.4,    0], rotulo: "Sala técnica"     },
+];
+
+function construir() {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
+  /* 1.5 en vez de 2: son cientos de líneas aditivas y el costo es de
+     relleno, no de vértices. A partir de acá cada pixel extra se paga. */
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setClearColor(0x000000, 0);
+  host.appendChild(renderer.domElement);
+
+  escena = new THREE.Scene();
+  camara = new THREE.PerspectiveCamera(42, 1, .1, 400);
+
+  const cara = (o, capa) => {
+    const m = new THREE.MeshBasicMaterial({
+      color: C.PLACA, transparent: true, opacity: o,
+      side: THREE.DoubleSide, depthWrite: false
+    });
+    piezas.push({ mat: m, base: o, capa, viva: false });
+    return m;
+  };
+
+  // ── primitivas sobre el lote ──────────────────────────────────────
+  /* Volumen con cara tenue: sólo para las piezas que tienen que leerse
+     como macizas. El resto va en aristas, que es más liviano y más nítido. */
+  function volumen(w, h, d, x, y, z, lo, fo, capa) {
+    const g = new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(g, cara(fo, capa));
+    m.position.set(x, y, z);
+    escena.add(m);
+    lotes.aristas(w, h, d, x, y - h / 2, z, lo, capa);
+  }
+  /* Montantes de fachada: lo que convierte una caja en un edificio. */
+  function muroCortina(w, d, y0, y1, cx, cz, pasos, o, capa) {
+    const X = w/2, Z = d/2;
+    for (let i = 1; i < pasos; i++) {
+      const t = i / pasos;
+      const x = cx - X + w * t, z = cz - Z + d * t;
+      lotes.seg([x, y0, cz-Z], [x, y1, cz-Z], o, capa);
+      lotes.seg([x, y0, cz+Z], [x, y1, cz+Z], o, capa);
+      lotes.seg([cx-X, y0, z], [cx-X, y1, z], o, capa);
+      lotes.seg([cx+X, y0, z], [cx+X, y1, z], o, capa);
+    }
+  }
+  /* Cámara con su cono de cobertura. Es el oficio de la empresa:
+     merece estar dibujado, no sugerido. */
+  function camaraCCTV(x, y, z, giro, incl, largo, o, capa) {
+    lotes.aristas(.3, .24, .52, x, y, z, o, capa);
+    const d = [Math.sin(giro)*Math.cos(incl), Math.sin(incl), Math.cos(giro)*Math.cos(incl)];
+    const der = [Math.cos(giro), 0, -Math.sin(giro)];
+    const alt = [
+      der[1]*d[2] - der[2]*d[1],
+      der[2]*d[0] - der[0]*d[2],
+      der[0]*d[1] - der[1]*d[0],
+    ];
+    const c = [x + d[0]*largo, y + d[1]*largo, z + d[2]*largo];
+    const ew = largo * .21, eh = largo * .13;
+    const esq = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b]) => [
+      c[0] + der[0]*ew*a + alt[0]*eh*b,
+      c[1] + der[1]*ew*a + alt[1]*eh*b,
+      c[2] + der[2]*ew*a + alt[2]*eh*b,
+    ]);
+    esq.forEach((e, i) => {
+      lotes.seg([x,y,z], e, o, capa);
+      lotes.seg(e, esq[(i+1) % 4], o, capa);
+    });
+  }
+
+  // ══ terreno: casco, siempre presente, nunca protagonista ══════════
+  const grilla = new THREE.GridHelper(40, 20, C.FOSFORO, C.FOSFORO);
+  grilla.material.transparent = true;
+  grilla.material.blending = THREE.AdditiveBlending;
+  grilla.material.depthWrite = false;
+  grilla.material.opacity = .06;
+  piezas.push({ mat: grilla.material, base: .06, capa: -1 });
+  escena.add(grilla);
+  lotes.marco(23.4, 23.4, .01, .14, -1);
+
+  // ══ 0 · PERÍMETRO ═════════════════════════════════════════════════
+  lotes.marco(22, 22, .04, .3, 0);
+  lotes.marco(22, 22, 1.5, .3, 0);
+  lotes.marco(22, 22, .78, .14, 0);
+  for (let i = 0; i <= 12; i++) {                       // postes del cerco
+    const t = -11 + i * (22 / 12);
+    lotes.seg([t,0,-11],[t,1.62,-11], .22, 0); lotes.seg([t,0,11],[t,1.62,11], .22, 0);
+    lotes.seg([-11,0,t],[-11,1.62,t], .22, 0); lotes.seg([11,0,t],[11,1.62,t], .22, 0);
+  }
+  [[-11,-11],[11,-11],[11,11],[-11,11]].forEach(([x,z]) => {   // mástiles de esquina
+    lotes.seg([x,0,z],[x,3.4,z], .4, 0);
+    lotes.aristas(.5,.5,.5, x, 3.55, z, .3, 0);
+  });
+  camaraCCTV(-10.6, 3.2, -10.6,  Math.PI*0.75, -.34, 3.6, .3, 0);
+  camaraCCTV( 10.6, 3.2, -10.6, -Math.PI*0.75, -.34, 3.6, .3, 0);
+  camaraCCTV( 10.6, 3.2,  10.6, -Math.PI*0.25, -.34, 3.6, .3, 0);
+  camaraCCTV(-10.6, 3.2,  10.6,  Math.PI*0.25, -.34, 3.6, .3, 0);
+  lotes.marco(12, 12, .05, .5, 0);                            // plano de barrido
+  lotes.marco(16, 16, .05, .22, 0);
+
+  // ══ 1 · ACCESO ════════════════════════════════════════════════════
+  // calzada de ingreso con eje discontinuo
+  lotes.seg([-11,.02,7.4],[-4.2,.02,7.4], .3, 1);
+  lotes.seg([-11,.02,4.6],[-4.2,.02,4.6], .3, 1);
+  lotes.seg([-4.2,.02,7.4],[-4.2,.02,4.6], .3, 1);
+  for (let i = 0; i < 7; i++) {
+    const x = -10.6 + i * .95;
+    lotes.seg([x,.02,6],[x+.5,.02,6], .14, 1);
+  }
+  [-9.6,-8.2,-6.8].forEach(x => lotes.seg([x,0,4.2],[x,.55,4.2], .22, 1));  // bolardos
+  // barrera vehicular
+  volumen(.34, 1.7, .34, -7.4, .85, 7.9, .62, .3, 1);
+  lotes.seg([-7.4,1.55,7.9],[-4.1,1.55,7.9], .78, 1);
+  lotes.seg([-7.4,1.42,7.9],[-4.1,1.42,7.9], .4, 1);
+  for (let i = 1; i < 6; i++) {
+    const x = -7.4 + i * .55;
+    lotes.seg([x,1.42,7.9],[x,1.55,7.9], .3, 1);
+  }
+  // pórtico de lectura de patente
+  lotes.seg([-5.6,0,8.9],[-5.6,3.3,8.9], .4, 1);
+  lotes.seg([-5.6,3.3,8.9],[-3.2,3.3,8.9], .4, 1);
+  camaraCCTV(-3.9, 3.2, 8.9, Math.PI*0.97, -.5, 2.3, .5, 1);
+  // garita
+  volumen(1.7, 2.1, 1.5, -9.2, 1.05, 8.9, .5, .18, 1);
+  muroCortina(1.7, 1.5, .35, 1.85, -9.2, 8.9, 3, .22, 1);
+  // ingreso peatonal: puerta, marquesina y molinetes
+  volumen(3.4, 2.5, .34, 2.4, 1.25, 6.25, .62, .2, 1);
+  lotes.seg([.5,2.9,6.25],[.5,2.9,8.1], .4, 1); lotes.seg([4.3,2.9,6.25],[4.3,2.9,8.1], .4, 1);
+  lotes.marco(3.8, 1.85, 2.9, .4, 1, 2.4, 7.17);
+  lotes.seg([.5,2.9,8.1],[.5,2.5,6.25], .22, 1); lotes.seg([4.3,2.9,8.1],[4.3,2.5,6.25], .22, 1);
+  [1.55, 3.25].forEach(x => lotes.aristas(.22, .95, .8, x, .48, 7.5, .4, 1));
+  camaraCCTV(4.5, 2.8, 6.4, Math.PI*1.1, -.42, 1.9, .5, 1);
+
+  // ══ 2 · INTERIOR ══════════════════════════════════════════════════
+  volumen(11, 2.8, 10, 0, 1.4, 1.2, .5, .12, 2);        // podio
+  muroCortina(11, 10, .12, 2.72, 0, 1.2, 9, .22, 2);
+  lotes.marco(11, 10, 1.42, .14, 2, 0, 1.2);
+  lotes.marco(9.4, 8.4, 2.86, .3, 2, 0, 1.2);                 // losa del podio
+
+  const NIV = 6, H = 2, Y0 = 3;
+  for (let i = 0; i < NIV; i++) {
+    const yb = Y0 + i * H;
+    volumen(7, H, 7, 0, yb + H/2, 0, .4, .055, 2);
+    lotes.marco(7, 7, yb, .4, 2);                              // losa
+    lotes.marco(6.4, 6.4, yb + .06, .14, 2);                   // piso técnico
+    lotes.seg([-3.5,yb+H*.62,-3.5],[3.5,yb+H*.62,-3.5], .14, 2);   // antepecho
+    lotes.seg([-3.5,yb+H*.62,3.5],[3.5,yb+H*.62,3.5], .14, 2);
+    lotes.seg([-3.5,yb+H*.62,-3.5],[-3.5,yb+H*.62,3.5], .14, 2);
+    lotes.seg([3.5,yb+H*.62,-3.5],[3.5,yb+H*.62,3.5], .14, 2);
+    muroCortina(7, 7, yb + .08, yb + H - .08, 0, 0, 8, .22, 2);
+  }
+  lotes.marco(7, 7, Y0 + NIV * H, .5, 2);
+  // tabiques insinuados en dos plantas
+  [1, 3].forEach(i => {
+    const yb = Y0 + i * H + .1;
+    lotes.seg([-3.5,yb,1.2],[3.5,yb,1.2], .14, 2);
+    lotes.seg([1.4,yb,-3.5],[1.4,yb,3.5], .14, 2);
+  });
+  camaraCCTV(3.2, Y0 + 2*H + 1.3, 3.2, -Math.PI*0.25, -.3, 2.1, .3, 2);
+  camaraCCTV(-3.2, Y0 + 4*H + 1.3, 3.2, Math.PI*0.25, -.3, 2.1, .3, 2);
+
+  // ══ 3 · SERVICIOS ═════════════════════════════════════════════════
+  const YA = Y0 + NIV * H;                               // azotea
+  lotes.marco(7, 7, YA + .55, .4, 3);                          // parapeto
+  for (let i = 0; i <= 8; i++) {
+    const t = -3.5 + i * (7/8);
+    lotes.seg([t,YA,-3.5],[t,YA+.55,-3.5], .22, 3); lotes.seg([t,YA,3.5],[t,YA+.55,3.5], .22, 3);
+    lotes.seg([-3.5,YA,t],[-3.5,YA+.55,t], .22, 3); lotes.seg([3.5,YA,t],[3.5,YA+.55,t], .22, 3);
+  }
+  // dos equipos de clima con aletas
+  [[2.1,-1.7,2.5,1.1,2.1],[-2,1.5,1.6,.85,1.5]].forEach(([x,z,w,h,d]) => {
+    volumen(w, h, d, x, YA + h/2, z, .62, .2, 3);
+    for (let i = 1; i < 6; i++) {
+      const t = -w/2 + w * i/6;
+      lotes.seg([x+t, YA+h*.18, z-d/2],[x+t, YA+h*.82, z-d/2], .3, 3);
+    }
+  });
+  // tanque de agua
+  const TQ = [-2.4, YA + .95, -2.2];
+  for (let a = 0; a < 3; a++) lotes.marco(1.5, 1.5, YA + .35 + a * .6, .3, 3, TQ[0], TQ[2]);
+  for (let i = 0; i < 4; i++) {
+    const ang = i * Math.PI / 2 + Math.PI/4, r = 1.06;
+    lotes.seg([TQ[0]+Math.cos(ang)*r, YA, TQ[2]+Math.sin(ang)*r],
+        [TQ[0]+Math.cos(ang)*r, YA+1.9, TQ[2]+Math.sin(ang)*r], .3, 3);
+  }
+  // bandejas portacables sobre la azotea
+  [0, .34].forEach(dy => {
+    lotes.seg([-3.2, YA+.28+dy, .4],[3.2, YA+.28+dy, .4], .3, 3);
+  });
+  for (let i = 0; i < 11; i++) {
+    const x = -3.2 + i * .64;
+    lotes.seg([x, YA+.28, .4],[x, YA+.62, .4], .14, 3);
+  }
+  // mástil con travesaños y antena
+  lotes.seg([-2.9,YA,-3],[-2.9,YA+4.4,-3], .5, 3);
+  [1.9, 2.9, 3.6].forEach((h, i) => {
+    const b = .95 - i * .22;
+    lotes.seg([-2.9-b, YA+h, -3],[-2.9+b, YA+h, -3], .4, 3);
+    lotes.seg([-2.9, YA+h, -3-b],[-2.9, YA+h, -3+b], .4, 3);
+  });
+  lotes.marco(1.1, 1.1, YA + 4.1, .3, 3, -2.9, -3);
+  // montantes de servicios por la fachada trasera
+  for (let c = 0; c < 4; c++) {
+    const x = -2.4 + c * 1.6;
+    lotes.seg([x, Y0, -3.56],[x, YA, -3.56], .3, 3);
+    for (let i = 0; i <= NIV; i++) lotes.seg([x-.18, Y0+i*H, -3.56],[x+.18, Y0+i*H, -3.56], .22, 3);
+  }
+
+  // ══ 4 · INFRAESTRUCTURA ═══════════════════════════════════════════
+  volumen(2.3, 13.6, 2.3, 0, 7.9, 0, .4, .15, 4);        // núcleo técnico
+  for (let i = 0; i <= NIV; i++) lotes.marco(2.7, 2.7, Y0 + i * H, .3, 4);
+  muroCortina(2.3, 2.3, 1.1, 14.7, 0, 0, 3, .14, 4);
+  // sala técnica en la base: bastidores en dos filas
+  for (let f = 0; f < 2; f++) {
+    for (let i = 0; i < 3; i++) {
+      const x = -.62 + f * 1.24, z = -.66 + i * .66;
+      lotes.aristas(.44, 1.5, .44, x, 1.9, z, .5, 4);
+      for (let u = 1; u < 5; u++) {                       // unidades de rack
+        lotes.seg([x-.22, 1.15 + u*.3, z+.22],[x+.22, 1.15 + u*.3, z+.22], .3, 4);
+      }
+    }
+  }
+  lotes.marco(3.4, 3.4, 1.1, .4, 4);
+  // haz de conductos bajando del núcleo al suelo
+  for (let i = 0; i < 4; i++) {
+    const ang = i * Math.PI / 2 + Math.PI/4, r = 1.5;
+    const x = Math.cos(ang)*r, z = Math.sin(ang)*r;
+    lotes.seg([x, .06, z],[x, 3.2, z], .22, 4);
+    lotes.seg([x, 3.2, z],[Math.cos(ang)*.95, 4.1, Math.sin(ang)*.95], .22, 4);
+  }
+  // enlace del núcleo con la azotea
+  lotes.seg([0, YA, 0],[0, YA + 1.1, 0], .4, 4);
+
+  for (const ls of lotes.volcar(escena).values()) {
+    piezas.push({ mat: ls.material, base: ls.userData.o, capa: ls.userData.grupo, viva: true });
+  }
+
+  /* ── el foco: una retícula de instrumento, no el logo ───────────
+     Cuatro escuadras blancas encierran la pieza que se está explicando,
+     un tallo sube hasta el rótulo y una onda sale de la pieza cada dos
+     segundos y medio. Blanco puro sobre el campo cian: el ojo lo separa
+     antes de leer nada. Va con depthTest apagado y renderOrder alto —
+     es HUD, tiene que verse aunque la pieza esté dentro del edificio. */
+  const esquinas = [];
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
+    const x = sx * R_ANCHO, y = sy * R_ALTO;
+    esquinas.push(x, y, 0,  x - sx * R_BRAZO, y, 0);
+    esquinas.push(x, y, 0,  x, y - sy * R_BRAZO, 0);
+  });
+  const geoEscuadras = new THREE.BufferGeometry();
+  geoEscuadras.setAttribute("position", new THREE.Float32BufferAttribute(esquinas, 3));
+
+  const geoTallo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, R_ALTO + 4, 0),
+    new THREE.Vector3(0, R_ALTO + R_TALLO, 0),
+  ]);
+  // la onda se dibuja con radio 1: el bucle la escala de 34 a 200 px
+  const geoOnda = new THREE.RingGeometry(.955, 1, 72);
+
+  FOCOS.forEach((f, i) => {
+    const g = new THREE.Group();
+    g.position.set(...f.p);
+    const mats = [];
+    const blanca = (base, Tipo, geo) => {
+      const m = new THREE.LineBasicMaterial({
+        color: 0xFFFFFF, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+      });
+      mats.push({ mat: m, base });
+      g.add(new Tipo(geo, m));
+    };
+    blanca(1,   THREE.LineSegments, geoEscuadras);
+    blanca(.52, THREE.Line,         geoTallo);
+
+    const mOnda = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF, transparent: true, opacity: 0, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+    });
+    const onda = new THREE.Mesh(geoOnda, mOnda);
+    g.add(onda);
+
+    g.renderOrder = 10;
+    g.visible = false;
+    escena.add(g);
+    marcas.push({ grupo: g, mats, onda, mOnda, capa: i, rotulo: f.rotulo });
+  });
+
+  /* ── polvo: lo que queda del abismo alrededor del objeto ───────── */
+  const textura = (() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d");
+    const rad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    rad.addColorStop(0, "rgba(255,255,255,1)");
+    rad.addColorStop(.32, "rgba(255,255,255,.72)");
+    rad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = rad; g.fillRect(0, 0, 64, 64);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+
+  const pts = [];
+  for (let i = 0; i < 420; i++) {
+    const r = 16 + Math.pow(Math.random(), .6) * 46;
+    const th = Math.random() * Math.PI * 2;
+    const ph = Math.acos(1 - 2 * Math.random());
+    pts.push(Math.sin(ph) * Math.cos(th) * r, Math.abs(Math.cos(ph)) * r * .5 - 2, Math.sin(ph) * Math.sin(th) * r);
+  }
+  const geoPolvo = new THREE.BufferGeometry();
+  geoPolvo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  polvo = new THREE.Points(geoPolvo, new THREE.PointsMaterial({
+    color: C.FOSFORO, size: .3, sizeAttenuation: true, map: textura,
+    transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  escena.add(polvo);
+
+  redimensionar();
+  window.addEventListener("resize", redimensionar, { passive: true });
+}
+
+function redimensionar() {
+  const w = host.clientWidth, h = host.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camara.aspect = w / h;
+  vista.w = w; vista.h = h;
+  camara.updateProjectionMatrix();
+  medirEscenario();
+}
+
+/* w/h del canvas y, sobre todo, la franja libre a la derecha del texto:
+   x0..x1. Todo lo que encuadra el modelo sale de esa franja. */
+const vista = { w: 0, h: 0, x0: 0, x1: 0, holgura: 1, meta: 0, velo: 1 };
+
+/* Se mide una vez por redimensión, nunca por cuadro: leer un rect en el
+   bucle de dibujo fuerza layout en cada vuelta. */
+function medirEscenario() {
+  const texto = document.querySelector(".capa");
+  const der = texto ? texto.getBoundingClientRect().right : vista.w * .5;
+  vista.x0 = Math.min(der + 28, vista.w - 140);
+  vista.x1 = vista.w - 28;
+  /* Cuánto encoger la retícula cuando la franja es angosta: el HUD tiene
+     que caber en el hueco, no pisar el párrafo. */
+  vista.holgura = tope((vista.x1 - vista.x0) / 580, .45, 1);
+  /* 36% de la franja y no el centro: el foco es un punto, pero el modelo
+     se abre a los dos lados. Centrado en la franja, el predio entero se
+     salía de cuadro por la derecha en el plano general. */
+  vista.meta = vista.w > 900
+    ? tope((vista.x0 + (vista.x1 - vista.x0) * .36) / vista.w, .58, .84)
+    : 0;
+  host.style.setProperty("--halo", (vista.meta ? vista.meta * 100 : 50).toFixed(1) + "%");
+}
+
+/* ── el rótulo del foco ───────────────────────────────────────────
+   Un elemento HTML anclado a un punto 3D: se proyecta la punta del
+   tallo de la retícula y la posición se escribe con transform. No se
+   toca layout en ningún cuadro; el único ancho que se mide se cachea
+   cuando cambia el texto, que pasa cinco veces en toda la página. */
+const rotulo3d   = document.getElementById("foco");
+const rotuloDice = rotulo3d && rotulo3d.firstElementChild;
+let rotuloActual = null, rotuloMedia = 0;
+
+function ocultarRotulo() {
+  if (rotulo3d && !rotulo3d.hidden) { rotulo3d.hidden = true; rotuloActual = null; }
+}
+
+function ubicarRotulo(m, o) {
+  if (!rotulo3d) return;
+  /* .32 y no un umbral mínimo: el rótulo tiene que estar bien apagado
+     cuando el foco pasa de una capa a la otra, o el texto salta de golpe
+     con la etiqueta a plena opacidad. */
+  if (!m || o < .32 || !escenarioAparte) { ocultarRotulo(); return; }
+  if (rotulo3d.hidden) rotulo3d.hidden = false;
+  if (m !== rotuloActual) {
+    rotuloDice.textContent = m.rotulo;
+    rotuloActual = m;
+    rotuloMedia = rotulo3d.offsetWidth / 2 + 20;   // una lectura por capa
+  }
+  punto.set(0, R_ALTO + R_TALLO, 0)
+       .applyQuaternion(camara.quaternion)
+       .multiplyScalar(m.grupo.scale.x)
+       .add(m.grupo.position)
+       .project(camara);
+  if (punto.z > 1) { rotulo3d.hidden = true; rotuloActual = null; return; }
+  const x = tope((punto.x * .5 + .5) * vista.w,
+                 vista.x0 + rotuloMedia - 20, vista.w - rotuloMedia);
+  const y = tope((-punto.y * .5 + .5) * vista.h, 104, vista.h - 20);
+  rotulo3d.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`;
+  rotulo3d.style.opacity = (tope((o - .32) / .34, 0, 1) * vista.velo).toFixed(3);
+}
+
+function dibujar(t) {
+  progresoSuave += (progreso - progresoSuave) * .075;
+  const p = progresoSuave;
+
+  /* El canvas se desvanece al terminar el descenso: seguir renderizando
+     debajo de una capa invisible es gasto puro. El rótulo es HTML y NO vive
+     dentro del canvas, así que este corte tiene que llevárselo puesto —
+     si no, queda clavado en pantalla el resto de la página. */
+  vista.velo = host.style.opacity === "" ? 1 : parseFloat(host.style.opacity);
+  if (vista.velo < .02) { ocultarRotulo(); return; }
+
+  // ── cámara: interpolación entre encuadres ───────────────────────
+  const bruto = tope(p * (NIVELES - 1), 0, NIVELES - 1.0001);
+  const i = Math.floor(bruto);
+  const k = suave(bruto - i);
+  const a = PARADAS[i], b = PARADAS[Math.min(NIVELES - 1, i + 1)];
+
+  const r   = a.r   + (b.r   - a.r)   * k;
+  const phi = a.phi + (b.phi - a.phi) * k;
+  const th  = a.th  + (b.th  - a.th)  * k + t * .000035;
+  const tx  = a.t[0] + (b.t[0] - a.t[0]) * k;
+  const ty  = a.t[1] + (b.t[1] - a.t[1]) * k;
+  const tz  = a.t[2] + (b.t[2] - a.t[2]) * k;
+
+  camara.position.set(
+    tx + Math.sin(phi) * Math.sin(th) * r,
+    ty + Math.cos(phi) * r,
+    tz + Math.sin(phi) * Math.cos(th) * r
+  );
+  camara.lookAt(tx, ty, tz);
+
+  /* El texto vive a la izquierda; el foco tiene que caer en la columna
+     vacía de la derecha. En vez de correr el encuadre a ojo, se proyecta
+     el foco con la lente centrada, se mira dónde cayó y se calcula el
+     corrimiento exacto que lo lleva a su sitio. Es un desplazamiento de
+     lente (frustum shear), no un giro: la perspectiva no se deforma.
+     La meta sale de medirEscenario(); en mobile no hay franja libre y el
+     corrimiento se apaga solo. */
+  camara.clearViewOffset();
+  camara.updateProjectionMatrix();
+  camara.updateMatrixWorld();
+
+  const meta = vista.meta;
+  escenarioAparte = meta > 0;
+  if (!meta) {
+    corrimiento = 0;
+  } else {
+    /* Durante el héroe todavía no hay capa activa: se apunta al objetivo
+       de la cámara y recién al entrar el descenso pasa a apuntar al foco. */
+    const fa = FOCOS[i].p, fb = FOCOS[Math.min(NIVELES - 1, i + 1)].p;
+    const e = suave(tope(p / .07, 0, 1));
+    punto.set(
+      tx + (fa[0] + (fb[0] - fa[0]) * k - tx) * e,
+      ty + (fa[1] + (fb[1] - fa[1]) * k - ty) * e,
+      tz + (fa[2] + (fb[2] - fa[2]) * k - tz) * e
+    ).project(camara);
+    const deseado = tope(punto.x * .5 + .5 - meta, -.33, .05);
+    corrimiento += (deseado - corrimiento) * (quieto ? 1 : .11);
+  }
+  if (corrimiento) {
+    camara.setViewOffset(vista.w, vista.h, corrimiento * vista.w, 0, vista.w, vista.h);
+    camara.updateProjectionMatrix();
+  }
+
+  // ── qué capa manda ──────────────────────────────────────────────
+  const crudo = Math.min(Math.max(p * NIVELES, .5), NIVELES - .5);
+  const enfoque = suave(tope(p / .07, 0, 1));   // el héroe muestra todo
+  const peso = [];
+  for (let n = 0; n < NIVELES; n++) {
+    peso[n] = tope(1 - Math.abs(crudo - (n + .5)) / .95, 0, 1);
+  }
+
+  /* La capa activa no sube de opacidad: cambia de color. Blanco puro
+     contra el campo cian se separa de un vistazo, y con blending aditivo
+     el blanco pesa casi el doble que el fósforo sin subir un solo pixel
+     de relleno. El resto baja más que antes para que el salto se note. */
+  for (const pz of piezas) {
+    if (pz.capa === -1) { pz.mat.opacity = pz.base; continue; }
+    const w = peso[pz.capa];
+    const foco = .26 + .74 * w;
+    pz.mat.opacity = pz.base * (1 + (foco - 1) * enfoque);
+    /* Sin escenario aparte el texto se lee sobre el modelo: ahí el blanco
+       se modera, porque el contraste que gana la pieza lo pierde el texto. */
+    if (pz.viva) pz.mat.color.copy(C_FOSFORO)
+      .lerp(C_BLANCO, w * enfoque * (escenarioAparte ? .92 : .5));
+  }
+
+  /* Un pixel de pantalla vale esto en unidades de mundo a distancia 1.
+     Multiplicado por la distancia da la escala que deja la retícula del
+     mismo tamaño en todo el recorrido. */
+  const porPixel = 2 * Math.tan(camara.fov * Math.PI / 360) / vista.h;
+  const fase = quieto ? .3 : (t % 2500) / 2500;
+  let mandaO = 0, manda = null;
+
+  for (const m of marcas) {
+    const o = peso[m.capa] * enfoque;
+    m.grupo.visible = o > .015;
+    if (!m.grupo.visible) continue;
+    m.grupo.quaternion.copy(camara.quaternion);     // siempre de frente
+    m.grupo.scale.setScalar(camara.position.distanceTo(m.grupo.position) * porPixel * vista.holgura);
+
+    /* Curva más dura que el peso lineal: en el cruce entre dos capas las
+       dos retículas valen .47, y con opacidad lineal se ven dos focos
+       igual de firmes en sitios distintos. Elevado, el relevo se lee. */
+    const oo = Math.pow(o, 1.6);
+    const pulso = .84 + Math.sin(t * .0021 + m.capa) * .16;
+    for (const c of m.mats) c.mat.opacity = oo * c.base * pulso;
+
+    m.onda.scale.setScalar(34 + fase * 172);
+    m.mOnda.opacity = oo * .46 * Math.pow(1 - fase, 1.7);
+
+    if (o > mandaO) { mandaO = o; manda = m; }
+  }
+  ubicarRotulo(manda, mandaO);
+
+  polvo.material.opacity = .5 - enfoque * .22;
+  polvo.rotation.y = t * .000012;
+
+  renderer.render(escena, camara);
+}
+
+let rafId = 0;
+function bucle(t) {
+  if (!corriendo) return;
+  dibujar(t);
+  rafId = requestAnimationFrame(bucle);
+}
+function arrancar() {
+  if (corriendo || !renderer) return;
+  corriendo = true; rafId = requestAnimationFrame(bucle);
+}
+function frenar() {
+  corriendo = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = 0;
+  /* Nadie va a dibujar otro cuadro: si el rótulo queda encendido, se queda
+     encendido. Apagarlo es parte de frenar. */
+  ocultarRotulo();
+}
+
+/* Guardas: una pestaña en segundo plano suspende rAF de todos modos,
+   y seguir pidiendo cuadros fuera de viewport es puro gasto. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) frenar(); else if (visible) arrancar();
+});
+
+try {
+  construir();
+  if (quieto) {
+    dibujar(0);                                   // un solo cuadro, quieto
+  } else {
+    arrancar();
+    /* La atmósfera sólo se ve en el héroe y en el descenso: después de eso
+       se desvanece. Observar <main> habría dejado el bucle corriendo toda
+       la página. */
+    const zonas = [document.getElementById("top"), document.getElementById("capas")];
+    const dentro = new Set();
+    const obs = new IntersectionObserver(entradas => {
+      entradas.forEach(e => e.isIntersecting ? dentro.add(e.target) : dentro.delete(e.target));
+      visible = dentro.size > 0;
+      if (visible && !document.hidden) arrancar(); else frenar();
+    }, { rootMargin: "160px" });
+    zonas.forEach(z => z && obs.observe(z));
+  }
+} catch (err) {
+  host.remove();                                   // sin WebGL, la página sigue entera
+  console.warn("Atmósfera no disponible:", err);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   EL DESCENSO
+   Ligado al scroll, no disparado por él: la cámara y la capa
+   encendida son función directa del progreso.
+   ══════════════════════════════════════════════════════════════════ */
+const pista  = document.getElementById("pista");
+const capas  = [...document.querySelectorAll("[data-capa]")];
+const rieles = [...document.querySelectorAll("[data-riel]")];
+
+function pintarCapas(p) {
+  /* Acotado a los centros de la primera y la última banda: sin esto, al
+     final del recorrido crudo vale 5, queda fuera de la banda de la quinta
+     capa y el texto se apagaba justo cuando la cámara llegaba. */
+  const crudo = Math.min(Math.max(p * NIVELES, .5), NIVELES - .5);
+  const viva = Math.min(NIVELES - 1, Math.max(0, Math.floor(crudo)));
+
+  capas.forEach((el, i) => {
+    const d = Math.abs(crudo - (i + .5));
+    const o = Math.min(1, Math.max(0, 1 - (d - .30) / .22));
+    el.style.opacity = o;
+    el.style.transform = `translateY(${(crudo - (i + .5)) * -26}px)`;
+    el.style.pointerEvents = o > .5 ? "auto" : "none";
+    el.setAttribute("aria-hidden", o > .5 ? "false" : "true");
+  });
+
+  rieles.forEach((el, i) => {
+    if (i === viva) el.dataset.viva = "si"; else delete el.dataset.viva;
+  });
+}
+
+if (quieto) {
+  capas.forEach(el => { el.style.opacity = 1; el.removeAttribute("aria-hidden"); });
+} else {
+  pintarCapas(0);
+  scroll(p => { progreso = p; pintarCapas(p); },
+         { target: pista, offset: ["start start", "end end"] });
+
+  // la atmósfera se retira cuando el descenso termina
+  const plataforma = document.getElementById("plataforma");
+  scroll(p => { host.style.opacity = String(1 - p); },
+         { target: plataforma, offset: ["start end", "start start"] });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FORMULARIO
+   ══════════════════════════════════════════════════════════════════ */
+// TODO(usuario): cuando exista el endpoint, poner acá su URL.
+// Mientras sea null, el formulario valida y deriva al email, sin mentir
+// que envió algo.
+montarFormulario({
+  form:     document.getElementById("formulario"),
+  boton:    document.getElementById("enviar"),
+  rotulo:   document.getElementById("enviar-texto"),
+  aviso:    document.getElementById("aviso"),
+  endpoint: null,
+});
+</script>
+
+<noscript>
+  <style>.entra{ opacity:1 !important; transform:none !important; }
+         .capa{ position:static !important; opacity:1 !important; }
+         .capas{ min-height:0 !important; display:flex; flex-direction:column; gap:56px; }
+         .descenso__pista{ height:auto !important; }
+         .descenso__escenario{ position:static !important; height:auto !important; display:block !important; padding-block:80px; }
+         .riel{ display:none !important; }
+         #atmosfera{ display:none !important; }</style>
+</noscript>
+
+</body>
+</html>

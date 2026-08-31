@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IOTEK · Monitoreo y control</title>
+<meta name="description" content="Iotek Soluciones: monitoreo y control para edificios y flotas vehiculares. Elegí el recorrido que corresponde a tu operación.">
+<meta name="theme-color" content="#051826">
+<link rel="icon" href="logos/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="logos/iotek-app-icon-oscuro.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/base.css">
+<style>
+/* Estilos propios del hub (index.html): una sola pantalla, sin scroll
+   de contenido. El isotipo (anillo + 3 nodos a 60/180/300°, la misma
+   geometría de logos/favicon.svg) gira en 3D como pieza central. */
+.heroe-hub{
+  min-height:100svh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; gap:clamp(14px,2.4vw,20px);
+  padding-top:calc(var(--h-header) + 8px); padding-bottom:20px;
+}
+.hub__cabecera{ max-width:640px; display:flex; flex-direction:column; gap:12px; align-items:center; }
+/* Tamaño propio, más chico que --t-display: acá el título es un selector,
+   no el h1 de una landing -- no necesita el mismo peso que edificios.html o
+   moviles.html, y en mayúscula ese tamaño no entra en un viewport. */
+.hub__cabecera h1{ max-width:22ch; font-size:clamp(34px,5.4vw,64px); }
+.hub__cabecera p{ font-size:var(--t-entrada); line-height:1.45; color:var(--bruma); max-width:52ch; }
+
+.hub__isotipo{ width:min(24vw,170px); aspect-ratio:1; }
+.hub__isotipo canvas{ width:100%; height:100%; }
+
+.hub__opciones{ display:flex; gap:20px; flex-wrap:wrap; justify-content:center; width:100%; max-width:760px; }
+.opcion{
+  flex:1 1 260px; display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:8px;
+  padding:20px 24px; border:1px solid var(--borde); border-radius:var(--r-cont); background:var(--placa);
+  transition:border-color 200ms ease, transform 200ms ease, background 200ms ease;
+}
+.opcion:hover{ border-color:var(--borde-vivo); background:var(--placa-alta); transform:translateY(-2px); }
+.opcion__fila{ display:flex; align-items:center; gap:10px; width:100%; }
+.opcion__titulo{ font:500 22px/1.1 "Chakra Petch", sans-serif; text-transform:uppercase; color:var(--platino); letter-spacing:-.005em; margin-right:auto; }
+.opcion svg{ width:20px; height:20px; color:var(--fosforo); flex:none; }
+.opcion__detalle{ font-size:15px; color:var(--plata); line-height:1.5; }
+
+@media (max-width:720px){
+  .hub__isotipo{ width:min(48vw,180px); }
+  .hub__opciones{ flex-direction:column; }
+}
+</style>
+</head>
+<body>
+
+<a class="solo-lectores" href="#contenido">Saltar al contenido</a>
+
+<header class="encabezado" id="encabezado">
+  <div class="encabezado__fila">
+    <a class="marca" href="#top" aria-label="IOTEK, inicio">
+      <img src="logos/iotek-horizontal-blanco.svg" alt="IOTEK" width="360" height="92" decoding="async">
+    </a>
+  </div>
+</header>
+
+<main id="contenido">
+  <section class="heroe-hub envoltura" id="top">
+    <div class="hub__cabecera">
+      <h1 class="entra" data-entra>Monitoreo y control, en una sola plataforma.</h1>
+      <p class="entra" data-entra>Iotek proyecta, instala y sostiene sistemas de monitoreo y control. Elegí el recorrido que corresponde a tu operación.</p>
+    </div>
+
+    <div class="hub__isotipo" id="isotipo" aria-hidden="true"></div>
+
+    <div class="hub__opciones">
+      <a class="opcion entra" data-entra href="edificios.html">
+        <div class="opcion__fila">
+          <span class="opcion__titulo">Edificios</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"/><path d="M15 16l4-4"/><path d="M15 8l4 4"/>
+          </svg>
+        </div>
+        <span class="opcion__detalle">Perímetro, acceso, interior, servicios e infraestructura, resueltos en un solo recorrido.</span>
+      </a>
+      <a class="opcion entra" data-entra href="moviles.html">
+        <div class="opcion__fila">
+          <span class="opcion__titulo">Vehículos</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"/><path d="M15 16l4-4"/><path d="M15 8l4 4"/>
+          </svg>
+        </div>
+        <span class="opcion__detalle">Ubicación, conducta del conductor, estado del vehículo, consumo y geocercas, sobre la flota.</span>
+      </a>
+    </div>
+  </section>
+</main>
+
+<footer class="pie">
+  <div class="envoltura pie__fila">
+    <img class="pie__marca" src="logos/iotek-horizontal-blanco.svg" alt="Iotek Soluciones" width="360" height="92" decoding="async" loading="lazy">
+    <span class="dato">Monitoreo · Control · Automatización</span>
+    <span class="dato">© 2026 Iotek Soluciones SA</span>
+  </div>
+</footer>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { C, suave, tope } from "./js/mesh.js";
+import { quieto, encabezadoFijo, revelarEntradas } from "./js/comun.js";
+
+encabezadoFijo(document.getElementById("encabezado"));
+revelarEntradas();
+
+/* ══════════════════════════════════════════════════════════════════
+   EL ISOTIPO EN 3D
+   Un anillo con tres nodos a 60°/180°/300° -- la misma geometría de
+   logos/favicon.svg -- girando como pieza central del hub. Reusa el
+   vocabulario de marca en vez de inventar una escena nueva: costo bajo,
+   consistencia alta.
+
+   LA INTRO: el isotipo se arma solo. Un barrido de lectura -- cabeza
+   blanca, el mismo "activo en blanco puro" del resto del sitio --
+   recorre el anillo dibujándolo, y al pasar por cada ángulo deposita
+   ese nodo: el tallo sale del anillo empujando la esfera hasta su
+   posición. La marca se construye con el gesto que la marca vende (una
+   pasada que lee y enciende), no con un fundido genérico. Dura ~1,5 s,
+   corre una sola vez y desemboca en el giro perpetuo sin saltar.
+   ══════════════════════════════════════════════════════════════════ */
+const host = document.getElementById("isotipo");
+const ANGULOS = [60, 180, 300].map(g => g * Math.PI / 180);
+const R_ANILLO = 1.1, R_NODO = 2.0, GROSOR_ANILLO = .16, R_ESFERA = .3, GROSOR_TALLO = .09;
+const SEG_TUBO = 96, SEG_RADIO = 12;          // el anillo, en gajos barribles
+const RETARDO = .18, T_ANILLO = 1.15, T_NODO = .46, GIRO = .28;   // s, rad/s
+
+/* Curvas. `suave` (smoothstep, de mesh.js) mueve el barrido; su INVERSA
+   exacta dice en qué instante el barrido pasa por cada nodo, así los
+   tiempos de arranque no se estiman ni se resuelven numéricamente. */
+const cuandoPasa = y => .5 - Math.sin(Math.asin(1 - 2 * y) / 3);
+const salida = x => 1 - (1 - x) ** 3;
+/* Sobrepaso contenido (~4,5%) para que el nodo APOYE en vez de clavarse.
+   DESIGN.md autoriza un resorte de bounce .15: eso es un asentamiento,
+   no un rebote -- Iotek vende monitoreo, no un juguete. */
+const asentar = x => { const c = 1.3, u = x - 1; return 1 + (c + 1) * u ** 3 + c * u ** 2; };
+
+// `?verificar` sólo cambia dos cosas, las dos para poder mirar la intro
+// cuadro a cuadro desde el verificador: el buffer se conserva para que la
+// captura no salga vacía, y abajo se expone cómo plantarse en un instante.
+const verificando = new URLSearchParams(location.search).has("verificar");
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true, alpha: true, powerPreference: "low-power",
+  preserveDrawingBuffer: verificando,
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setClearColor(0x000000, 0);
+host.appendChild(renderer.domElement);
+
+const escena = new THREE.Scene();
+const camara = new THREE.PerspectiveCamera(38, 1, .1, 20);
+camara.position.set(0, 0, 7.9);
+camara.lookAt(0, 0, 0);
+
+const grupo = new THREE.Group();
+grupo.rotation.x = -.36;
+escena.add(grupo);
+
+const material = new THREE.MeshBasicMaterial({
+  color: C.FOSFORO, transparent: true, opacity: .92,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+
+/* El anillo se dibuja con `setDrawRange`, no rehaciendo la geometría por
+   cuadro ni descartando en un shader. Para que el rango barra el ARCO hay
+   que reescribir el índice: el de TorusGeometry recorre primero la vuelta
+   entera y después el grosor, así que tal cual viene el rango dibuja una
+   tira fina alrededor de todo el anillo en vez de un arco que avanza. */
+const geoAnillo = new THREE.TorusGeometry(R_ANILLO, GROSOR_ANILLO, SEG_RADIO, SEG_TUBO);
+const indice = [];
+for (let i = 1; i <= SEG_TUBO; i++) {
+  for (let j = 1; j <= SEG_RADIO; j++) {
+    const a = (SEG_TUBO + 1) * j + i - 1, b = (SEG_TUBO + 1) * (j - 1) + i - 1;
+    const c = (SEG_TUBO + 1) * (j - 1) + i, d = (SEG_TUBO + 1) * j + i;
+    indice.push(a, b, d, b, c, d);
+  }
+}
+geoAnillo.setIndex(indice);
+const POR_GAJO = SEG_RADIO * 6;               // índices que cuesta un gajo
+grupo.add(new THREE.Mesh(geoAnillo, material));
+
+/* La cabeza de lectura: blanco puro sobre el cian, como el órgano activo
+   de las otras dos páginas. Vive sólo mientras dura el barrido. */
+const matCabeza = new THREE.MeshBasicMaterial({
+  color: C.BLANCO, transparent: true, opacity: .9,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.19, 16, 12), matCabeza);
+grupo.add(cabeza);
+
+const nodos = ANGULOS.map(a => {
+  const dir = new THREE.Vector3(Math.cos(a), Math.sin(a), 0);
+  const largo = R_NODO - R_ANILLO;
+  const tallo = new THREE.Mesh(
+    new THREE.CylinderGeometry(GROSOR_TALLO, GROSOR_TALLO, largo, 10),
+    material
+  );
+  tallo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  grupo.add(tallo);
+
+  const esfera = new THREE.Mesh(new THREE.SphereGeometry(R_ESFERA, 20, 16), material);
+  grupo.add(esfera);
+
+  // el instante en que el barrido cruza este ángulo, no un retardo a ojo
+  return { dir, largo, tallo, esfera, t0: RETARDO + cuandoPasa(a / (Math.PI * 2)) * T_ANILLO };
+});
+const T_TOTAL = nodos[nodos.length - 1].t0 + T_NODO;
+
+/* Un solo estado en función del tiempo: sirve para el cuadro animado y
+   para el cuadro único de `prefers-reduced-motion`. Sin asignar objetos. */
+function armar(t) {
+  const a = tope((t - RETARDO) / T_ANILLO, 0, 1), barrido = suave(a);
+  geoAnillo.setDrawRange(0, Math.round(barrido * SEG_TUBO) * POR_GAJO);
+
+  cabeza.visible = a > 0 && a < 1;
+  if (cabeza.visible) {
+    const ang = barrido * Math.PI * 2;
+    const vida = Math.min(1, a * 14) * tope((1 - a) / .16, 0, 1);  // nace y se apaga
+    cabeza.position.set(Math.cos(ang) * R_ANILLO, Math.sin(ang) * R_ANILLO, 0);
+    cabeza.scale.setScalar(.45 + .55 * vida);
+    matCabeza.opacity = .9 * vida;
+  }
+
+  for (let i = 0; i < nodos.length; i++) {
+    const n = nodos[i], k = tope((t - n.t0) / T_NODO, 0, 1), e = salida(k);
+    n.tallo.visible = n.esfera.visible = k > 0;
+    if (k === 0) continue;
+    n.tallo.scale.y = Math.max(e, 1e-4);
+    n.tallo.position.copy(n.dir).multiplyScalar(R_ANILLO + n.largo * e / 2);
+    n.esfera.position.copy(n.dir).multiplyScalar(R_ANILLO + n.largo * e);
+    n.esfera.scale.setScalar(asentar(k));
+  }
+  grupo.scale.setScalar(.94 + .06 * salida(tope((t - RETARDO) / (T_TOTAL - RETARDO), 0, 1)));
+}
+
+function redimensionar() {
+  const { width, height } = host.getBoundingClientRect();
+  if (!width || !height) return;
+  renderer.setSize(width, height, false);
+  camara.aspect = width / height;
+  camara.updateProjectionMatrix();
+}
+new ResizeObserver(redimensionar).observe(host);
+redimensionar();
+
+let visible = document.visibilityState === "visible";
+document.addEventListener("visibilitychange", () => {
+  visible = document.visibilityState === "visible";
+});
+
+let avance = 0, pausa = false;   // avance 0..1 de la intro
+const girar = t => t * GIRO - .55 * (1 - salida(tope((t - RETARDO) / (T_TOTAL - RETARDO), 0, 1)));
+
+if (verificando) {
+  window.__isotipo = () => avance;
+  // Plantarse en un instante exacto. Sin esto la única forma de mirar la
+  // intro es capturar contra el reloj, y una captura tarda más que un
+  // cuadro: se termina midiendo un estado que nadie eligió.
+  window.__isotipoIr = t => {
+    pausa = true;
+    armar(t); grupo.rotation.y = girar(t);
+    renderer.render(escena, camara);
+  };
+}
+
+if (quieto) {
+  armar(T_TOTAL);
+  avance = 1;
+  grupo.rotation.y = .5;
+  renderer.render(escena, camara);
+} else {
+  let tv = 0, previo = performance.now(), cerrado = false;
+  const bucle = ahora => {
+    requestAnimationFrame(bucle);
+    const dt = ahora - previo; previo = ahora;
+    if (!visible || pausa) return;
+    // El tiempo se acumula sólo con la pestaña a la vista, y con tope de
+    // 50 ms por cuadro: quien abre el hub en una pestaña de fondo ve la
+    // intro al volver, no un salto al estado final.
+    tv += Math.min(dt, 50) / 1000;
+    avance = tope((tv - RETARDO) / (T_TOTAL - RETARDO), 0, 1);
+    if (avance < 1) armar(tv);
+    else if (!cerrado) { armar(T_TOTAL); cerrado = true; }
+    // El giro perpetuo arranca desfasado y el desfase se apaga con la
+    // intro: la derivada llega a cero justo al terminar, así que entra en
+    // el giro de régimen sin costura y sin un segundo bucle.
+    grupo.rotation.y = girar(tv);
+    renderer.render(escena, camara);
+  };
+  requestAnimationFrame(bucle);
+}
+</script>
+</body>
+</html>
